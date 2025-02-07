@@ -3,18 +3,15 @@ from handlers.HandlerMenu.handler_language_select import handle_language_selecti
 from handlers.HandlerMenu.handler_help import handle_halp
 from keyboard.keyboardInlineStartMessage import create_inline_keyboard
 from telebot import types
-from handlers.config import TOKEN_PAY_MASTER
 import logging
-
+from handlers.HandlerMenu.handler_pay_sub import process_pre_checkout_query,process_successful_payment
+from keyboard.keyboard_inline_buy_menu import keyboard_inline_buy,keyboard_inline_payment
+from handlers.callback_action_handler import process_callback
 # Настройка логирования для отладки
 logging.basicConfig(level=logging.INFO)
 
 
-# Вспомогательная функция для обработки общих действий
-def process_callback(call, message_text, answer_text=None, parse_mode=None):
-    if answer_text:
-        bot.answer_callback_query(call.id, answer_text)
-    bot.send_message(call.message.chat.id, message_text, parse_mode=parse_mode)
+
 
 
 # Обработчик нажатий инлайн-кнопок
@@ -22,59 +19,10 @@ def process_callback(call, message_text, answer_text=None, parse_mode=None):
 def handle_callback(call):
     try:
         if call.data == "buy_extend":
-            # Создаем клавиатуру с вариантами подписки
-            subscription_keyboard = types.InlineKeyboardMarkup()
-
-            # Добавляем кнопки для разных вариантов подписки
-            one_month_button = types.InlineKeyboardButton("1 месяц - 199₽", callback_data="subscribe_1")
-            two_months_button = types.InlineKeyboardButton("2 месяца - 399₽", callback_data="subscribe_2")
-            three_months_button = types.InlineKeyboardButton("3 месяца - 569₽ (-5%)", callback_data="subscribe_3")
-            six_months_button = types.InlineKeyboardButton("6 месяцев - 960₽ (-20%)", callback_data="subscribe_6")
-            twelve_months_button = types.InlineKeyboardButton("12 месяцев - 1560₽ (-35%)", callback_data="subscribe_12")
-
-            subscription_keyboard.row(one_month_button, two_months_button)
-            subscription_keyboard.row(three_months_button, six_months_button)
-            subscription_keyboard.row(twelve_months_button)
-
-            # Отправляем сообщение с клавиатурой
-            bot.send_message(
-                call.message.chat.id,
-                "Выберите вариант подписки:",
-                reply_markup=subscription_keyboard
-            )
+            keyboard_inline_buy(call)
 
         elif call.data.startswith("subscribe_"):
-            # Определяем выбранный срок подписки
-            subscription_period = call.data.split("_")[1]
-
-            # Создаем словарь с ценами для разных периодов
-            subscription_prices = {
-                "1": {"label": "Подписка на 1 месяц", "amount": 199},
-                "2": {"label": "Подписка на 2 месяца", "amount": 399},
-                "3": {"label": "Подписка на 3 месяца -5% скидка", "amount": 569},
-                "6": {"label": "Подписка на 6 месяцев -20% скидка", "amount": 960},
-                "12": {"label": "Подписка на 12 месяцев -35% скидка", "amount": 1560},
-            }
-
-            if subscription_period in subscription_prices:
-                # Получаем данные о выбранной подписке
-                price_info = subscription_prices[subscription_period]
-                label = price_info["label"]
-                amount = price_info["amount"]
-
-                # Отправляем инвойс для оплаты
-                bot.send_invoice(
-                    chat_id=call.message.chat.id,
-                    title=label,
-                    description=f"Оплата {label}",
-                    provider_token=TOKEN_PAY_MASTER,  # Убедитесь, что это тестовый токен
-                    currency='RUB',
-                    prices=[types.LabeledPrice(label=label, amount=amount * 100)],  # Сумма в копейках
-                    start_parameter='test-invoice-payload',
-                    invoice_payload=f'subscription_{subscription_period}'
-                )
-            else:
-                process_callback(call, "Неизвестный вариант подписки.", "Ошибка: Неизвестный вариант")
+            keyboard_inline_payment(call)
 
         elif call.data == "help":
             handle_halp(call)  # Вызов функции помощи
@@ -151,15 +99,3 @@ def handle_callback(call):
         logging.error(f"Error in callback handler: {e}")
 
 
-# Обработка pre_checkout_query (подтверждение оплаты)
-@bot.pre_checkout_query_handler(func=lambda query: True)
-def process_pre_checkout_query(pre_checkout_query):
-    logging.info(f"Pre-checkout query received: {pre_checkout_query}")
-    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-
-
-# Обработка успешной оплаты
-@bot.message_handler(content_types=['successful_payment'])
-def process_successful_payment(message):
-    logging.info(f"Successful payment received: {message.successful_payment}")
-    bot.send_message(message.chat.id, "Спасибо за оплату! Ваша подписка активирована.")
