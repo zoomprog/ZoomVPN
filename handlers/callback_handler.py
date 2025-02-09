@@ -7,6 +7,7 @@ import logging
 from handlers.HandlerMenu.handler_pay_sub import process_pre_checkout_query,process_successful_payment
 from keyboard.keyboard_inline_buy_menu import keyboard_inline_buy,keyboard_inline_payment
 from handlers.callback_action_handler import process_callback
+from handlers.HandlerMenu.back_main_menu import main_menu
 # Настройка логирования для отладки
 logging.basicConfig(level=logging.INFO)
 
@@ -52,25 +53,7 @@ def handle_callback(call):
             process_callback(call, "Вы выбрали опцию 'Партнерская программа'.", "Выбрано: Партнерская программа")
 
         elif call.data == "main_menu":  # Проверяем "Главное меню" до языков
-            username = call.from_user.first_name or "Пользователь"
-            text = (
-                f"👋 Привет, {username}!\n\n"
-                "💻 Добро пожаловать в ZoomVPN!:\n"
-                "🚫 Никаких ограничений скорости — полная свобода в интернете на максимальной скорости.\n"
-                "🌍 Доступ ко всем сайтам — никаких блокировок, где бы вы ни находились.\n"
-                "🔒 Конфиденциальность и безопасность — шифрование данных на уровне банковских стандартов.\n"
-                "⚙️ Быстрое подключение — легко настроить за 1 минуту на iPhone, Android, ПК и macOS.\n"
-                "💳 Оплата картами РФ 🇷🇺 и СБП — просто и удобно.\n"
-                "💵 Всего 199₽ в месяц — без скрытых платежей и рекламы.\n\n"
-                "🚀 Начните прямо сейчас!"
-            )
-            keyboard = create_inline_keyboard()  # Создание клавиатуры
-            bot.send_message(
-                call.message.chat.id,
-                text,
-                reply_markup=keyboard,
-                parse_mode='Markdown'
-            )
+            main_menu(call)
 
         elif call.data in ["ru", "en", "de", "fr"]:  # Языки проверяем после "Главное меню"
             language_mapping = {

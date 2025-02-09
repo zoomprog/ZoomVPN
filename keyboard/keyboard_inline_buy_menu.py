@@ -20,6 +20,7 @@ def keyboard_inline_buy(call):
     eleven_months_button = types.InlineKeyboardButton("11 месяцев - 1540₽ (-45%)", callback_data="subscribe_11")
     twelve_months_button = types.InlineKeyboardButton("12 месяцев - 1560₽ (-35%)", callback_data="subscribe_12")
 
+
     subscription_keyboard.row(one_month_button)
     subscription_keyboard.row(two_months_button)
     subscription_keyboard.row(three_months_button)
@@ -32,6 +33,7 @@ def keyboard_inline_buy(call):
     subscription_keyboard.row(ten_months_button)
     subscription_keyboard.row(eleven_months_button)
     subscription_keyboard.row(twelve_months_button)
+    subscription_keyboard.add(types.InlineKeyboardButton("Главное меню", callback_data="main_menu"))
 
     # Отправляем сообщение с клавиатурой
     bot.send_message(

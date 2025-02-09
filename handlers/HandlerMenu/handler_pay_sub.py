@@ -1,8 +1,9 @@
 from handlers.config import bot
 from database.mongoDB import coll
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import logging
+
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def process_pre_checkout_query(pre_checkout_query):
@@ -47,7 +48,7 @@ def process_successful_payment(message):
     # Проверяем, существует ли пользователь в базе данных
     user_data = coll.find_one({"telegram_id": user_id})
 
-    if user_data and "subscription_expiry_date" in user_data:
+    if user_data and "subscription_expiry_date" in user_data and user_data["subscription_expiry_date"] is not None:
         # Если пользователь уже имеет активную подписку, добавляем месяцы к текущей дате окончания
         current_expiry_date = user_data["subscription_expiry_date"]
         new_expiry_date = current_expiry_date + relativedelta(months=months)
