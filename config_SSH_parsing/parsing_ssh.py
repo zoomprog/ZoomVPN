@@ -2,136 +2,119 @@ import paramiko
 import os
 import qrcode
 from database.mongo_connect_ssh import ssh
+from database.mongo_config_and_QRCode import config_and_QRCode
 import logging
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Подсчет документов напрямую через count_documents
-document_count = ssh.count_documents({"alpha2": "ru_ssh_profile"})
-if document_count == 0:
-    logging.error("Не найдено профилей SSH с alpha2 'ru_ssh_profile'")
-    exit(1)
+# Функция для создания QR-кода из .conf-файла
+def create_qr_code(config_file_path, output_dir):
+    with open(config_file_path, 'r') as file:
+        config_data = file.read().strip()
+    if not config_data:
+        logging.warning(f"Файл {config_file_path} пустой. Пропускаем...")
+        return None
 
-# Получение данных из MongoDB
-documents = ssh.find({"alpha2": "ru_ssh_profile"})
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4
+    )
+    qr.add_data(config_data)
+    qr.make(fit=True)
 
-# Обработка каждого документа
-for doc in documents:
-    alpha2 = doc.get("alpha2")
-    hostname = doc.get("hostname")
-    port = doc.get("port")
-    username = doc.get("username")
-    password = doc.get("password")
-    amount_users = doc.get("amount_users")
+    img = qr.make_image(fill_color="black", back_color="white")
+    output_file_path = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(config_file_path))[0]}.png")
+    img.save(output_file_path)
+    logging.info(f"QR-код создан: {output_file_path}")
+    return output_file_path
 
-    if not all([hostname, port, username, password]):
-        logging.error("Недостаточно данных для подключения к серверу")
-        continue
+# Основная функция для обработки SSH-профилей
+def process_ssh_profiles():
+    # Получение всех профилей SSH
+    ssh_profiles = ssh.find()
 
-    logging.info(f"Обработка профиля: {alpha2}")
+    for profile in ssh_profiles:
+        alpha2 = profile.get("alpha2")
+        hostname = profile.get("hostname")
+        port = profile.get("port")
+        username = profile.get("username")
+        password = profile.get("password")
 
-    # Настройки подключения
-    try:
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname, port=port, username=username, password=password)
-        logging.info("Успешное подключение к серверу")
-    except paramiko.AuthenticationException:
-        logging.error("Ошибка аутентификации. Проверьте имя пользователя и пароль.")
-        continue
-    except paramiko.SSHException as ssh_ex:
-        logging.error(f"Ошибка SSH: {ssh_ex}")
-        continue
-    except paramiko.ssh_exception.NoValidConnectionsError:
-        logging.error("Не удалось установить соединение. Проверьте адрес сервера и порт.")
-        continue
-    except Exception as e:
-        logging.error(f"Произошла неизвестная ошибка: {e}")
-        continue
+        if not all([alpha2, hostname, port, username, password]):
+            logging.error(f"Недостаточно данных для профиля {alpha2}. Пропускаем...")
+            continue
 
-    try:
-        # Открытие SFTP-сессии для скачивания файлов
-        sftp = client.open_sftp()
+        logging.info(f"Обработка профиля: {alpha2}")
 
-        # Удаленная директория, где находятся файлы .conf
-        remote_directory = '/root/'
+        try:
+            # Подключение к SSH-серверу
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh_client.connect(hostname, port=port, username=username, password=password)
 
-        # Локальная базовая директория для сохранения файлов
-        local_base_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), 'download_config'))
+            # Открытие SFTP-сессии
+            sftp = ssh_client.open_sftp()
+            remote_directory = '/root/'  # Директория с конфигами на сервере
+            local_base_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), 'download_config'))
 
-        # Создание локальной директории download_config/config, если её нет
-        config_directory = os.path.join(local_base_directory, 'ru/config')
-        if not os.path.exists(config_directory):
-            os.makedirs(config_directory)
-            logging.info(f"Создана директория: {config_directory}")
+            # Создание локальной директории для конфигов
+            config_directory = os.path.join(local_base_directory, alpha2, 'config')
+            if not os.path.exists(config_directory):
+                os.makedirs(config_directory)
 
-        # Получение списка файлов в удаленной директории
-        remote_files = sftp.listdir(remote_directory)
+            # Создание локальной директории для QR-кодов
+            qr_directory = os.path.join(local_base_directory, alpha2, 'qr')
+            if not os.path.exists(qr_directory):
+                os.makedirs(qr_directory)
 
-        # Фильтрация только файлов с расширением .conf, исключая wghub.conf
-        conf_files = [f for f in remote_files if f.endswith('.conf') and f != 'wghub.conf']
+            # Скачивание .conf-файлов
+            remote_files = sftp.listdir(remote_directory)
+            conf_files = [f for f in remote_files if f.endswith('.conf') and f != 'wghub.conf']
 
-        # Скачивание файлов
-        for remote_file in conf_files:
-            remote_file_path = os.path.join(remote_directory, remote_file)  # Полный путь к удаленному файлу
-            local_file_path = os.path.join(config_directory, remote_file)  # Полный путь к локальному файлу
+            for remote_file in conf_files:
+                remote_file_path = os.path.join(remote_directory, remote_file)
+                local_file_path = os.path.join(config_directory, remote_file)
 
-            try:
-                sftp.get(remote_file_path, local_file_path)  # Скачиваем файл
-                logging.info(f"Файл {remote_file} успешно скачан в {local_file_path}")
-            except FileNotFoundError:
-                logging.error(f"Файл {remote_file_path} не найден на удалённом сервере")
-            except Exception as e:
-                logging.error(f"Ошибка при скачивании файла {remote_file_path}: {e}")
+                try:
+                    sftp.get(remote_file_path, local_file_path)
+                    logging.info(f"Файл {remote_file} успешно скачан в {local_file_path}")
 
-    except Exception as e:
-        logging.error(f"Ошибка при работе с SFTP: {e}")
-    finally:
-        # Закрытие SFTP-сессии и SSH-соединения
-        if 'sftp' in locals() and sftp:
+                    # Создание QR-кода
+                    qr_file_path = create_qr_code(local_file_path, qr_directory)
+                    if qr_file_path:
+                        # Проверка наличия записи в базе данных
+                        config_name = os.path.basename(local_file_path)
+                        qrcode_name = os.path.basename(qr_file_path)
+
+                        existing_record = config_and_QRCode.find_one({
+                            "qrcode_name": qrcode_name,
+                            "config_name": config_name,
+                            "alpha2_name": alpha2
+                        })
+
+                        if existing_record:
+                            logging.info(f"Запись уже существует: {config_name}, {qrcode_name}. Пропускаем...")
+                            continue
+
+                        # Сохранение информации в ConfigAndQRCode
+                        config_and_QRCode.insert_one({
+                            "qrcode_name": qrcode_name,
+                            "alpha2_name": alpha2,
+                            "config_name": config_name,
+                            "telegram_id": 0  # Можно добавить telegram_id позже
+                        })
+                        logging.info(f"Новая запись сохранена в ConfigAndQRCode: {config_name}, {qrcode_name}")
+
+                except FileNotFoundError:
+                    logging.error(f"Файл {remote_file_path} не найден на удалённом сервере")
+                except Exception as e:
+                    logging.error(f"Ошибка при обработке файла {remote_file}: {e}")
+
             sftp.close()
-        client.close()
+            ssh_client.close()
 
-# Функция создания QR-кодов из .conf-файлов
-def create_qr_codes_from_configs(config_dir, output_dir):
-    # Создание папки для QR-кодов, если её нет
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        logging.info(f"Создана директория для QR-кодов: {output_dir}")
-
-    # Перебор всех .conf-файлов в указанной директории
-    if not os.path.exists(config_dir) or not os.listdir(config_dir):
-        logging.error(f"Директория {config_dir} пуста или не существует")
-        return
-
-    for config_file in os.listdir(config_dir):
-        if config_file.endswith('.conf'):
-            config_file_path = os.path.join(config_dir, config_file)
-
-            with open(config_file_path, 'r') as file:
-                config_data = file.read().strip()
-
-            if not config_data:
-                logging.warning(f"Файл {config_file} пустой. Пропускаем...")
-                continue
-
-            # Создание QR-кода
-            qr = qrcode.QRCode(
-                version=None,  # Автоматическое определение версии
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4
-            )
-            qr.add_data(config_data)
-            qr.make(fit=True)
-
-            # Сохранение QR-кода в виде PNG
-            img = qr.make_image(fill_color="black", back_color="white")
-            output_file_path = os.path.join(output_dir, f"{os.path.splitext(config_file)[0]}.png")
-            img.save(output_file_path)
-            logging.info(f"QR-код для файла {config_file} создан и сохранён как {output_file_path}")
-
-# Вызов функции для создания QR-кодов
-png_directory = os.path.join(local_base_directory, 'ru/png')
-create_qr_codes_from_configs(config_directory, png_directory)
+        except Exception as e:
+            logging.error(f"Ошибка при подключении к профилю {alpha2}: {e}")
