@@ -8,6 +8,10 @@ from handlers.HandlerMenu.handler_pay_sub import process_pre_checkout_query,proc
 from keyboard.keyboard_inline_buy_menu import keyboard_inline_buy,keyboard_inline_payment
 from handlers.callback_action_handler import process_callback
 from handlers.HandlerMenu.back_main_menu import main_menu
+from messages.messages import help_Connection_Instructions_qr, help_Connection_Instructions_file
+from keyboard.keyboard_inline_help_connect import create_inline_help_connect
+from keyboard.keyboard_back_menu import create_inline_back_menu
+from handlers.HandlerMenu.help_menu import doesnt_work_vpn
 # Настройка логирования для отладки
 logging.basicConfig(level=logging.INFO)
 
@@ -27,7 +31,30 @@ def handle_callback(call):
 
         elif call.data == "help":
             handle_halp(call)  # Вызов функции помощи
-
+        elif call.data == "help_how_to_connect":
+            bot.send_message(call.message.chat.id, text="Cпособ подключения к VPN", reply_markup=create_inline_help_connect(),parse_mode='Markdown')
+        elif call.data == "qr_connect_help":
+            bot.send_message(
+                call.message.chat.id,
+                text=help_Connection_Instructions_qr,
+                reply_markup=create_inline_back_menu(),
+                parse_mode='Markdown'
+            )
+        elif call.data == "file_connect_help":
+            bot.send_message(
+                call.message.chat.id,
+                text=help_Connection_Instructions_file,
+                reply_markup=create_inline_back_menu(),
+                parse_mode='Markdown'
+            )
+        elif call.data == "vpn_not_working":
+            doesnt_work_vpn(call)
+        elif call.data == "contact_with_me":
+            bot.send_message(
+                call.message.chat.id,
+                text="C предложениями о сотрудничестве, улучшении функционала и по другим вопросам, пишите мне @zoomkaXXX",
+                parse_mode='Markdown'
+            )
         elif call.data == "active_keys":
             process_callback(call, "Вы выбрали опцию 'Мои активные ключи'.", "Выбрано: Мои активные ключи")
 
@@ -45,12 +72,6 @@ def handle_callback(call):
 
         elif call.data == "invite":
             process_callback(call, "Вы выбрали опцию 'Пригласить'.", "Выбрано: Пригласить")
-
-        elif call.data == "language":
-            handle_language_selection(call)  # Вызов функции выбора языка
-
-        elif call.data == "partnership":
-            process_callback(call, "Вы выбрали опцию 'Партнерская программа'.", "Выбрано: Партнерская программа")
 
         elif call.data == "main_menu":  # Проверяем "Главное меню" до языков
             main_menu(call)

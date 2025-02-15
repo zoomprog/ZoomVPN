@@ -1,6 +1,7 @@
 from handlers.config import bot
 from keyboard.keyboardInlineStartMessage import create_inline_keyboard
 
+
 def main_menu(call):
     username = call.from_user.first_name or "Пользователь"
     text = (

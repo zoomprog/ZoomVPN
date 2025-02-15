@@ -4,32 +4,61 @@ import qrcode
 from database.mongo_connect_ssh import ssh
 from database.mongo_config_and_QRCode import config_and_QRCode
 import logging
-
+from PIL import Image
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Функция для создания QR-кода из .conf-файла
-def create_qr_code(config_file_path, output_dir):
+def create_qr_code(config_file_path, output_dir, logo_path=None):
+    """
+    Создает QR-код с минималистичным дизайном.
+    :param config_file_path: Путь к файлу с данными для QR-кода.
+    :param output_dir: Директория для сохранения QR-кода.
+    :param logo_path: Путь к логотипу (опционально).
+    :return: Путь к сохраненному QR-коду.
+    """
+    # Чтение данных из файла
     with open(config_file_path, 'r') as file:
         config_data = file.read().strip()
     if not config_data:
         logging.warning(f"Файл {config_file_path} пустой. Пропускаем...")
         return None
 
+    # Создание QR-кода
     qr = qrcode.QRCode(
         version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,  # Высокий уровень коррекции ошибок
         box_size=10,
-        border=4
+        border=2  # Уменьшаем границу для более компактного вида
     )
     qr.add_data(config_data)
     qr.make(fit=True)
 
-    img = qr.make_image(fill_color="black", back_color="white")
+    # Создание изображения QR-кода
+    img = qr.make_image(fill_color="#000000", back_color="#FFFFFF")  # Черно-белый QR-код
+
+    # Добавление логотипа (если указан)
+    if logo_path and os.path.exists(logo_path):
+        logo = Image.open(logo_path)
+        logo_size = 50  # Размер логотипа
+        logo = logo.resize((logo_size, logo_size), Image.ANTIALIAS)
+
+        # Позиционирование логотипа в центре QR-кода
+        img_width, img_height = img.size
+        logo_position = (
+            (img_width - logo_size) // 2,
+            (img_height - logo_size) // 2
+        )
+
+        # Наложение логотипа на QR-код
+        img.paste(logo, logo_position)
+
+    # Сохранение QR-кода
     output_file_path = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(config_file_path))[0]}.png")
     img.save(output_file_path)
     logging.info(f"QR-код создан: {output_file_path}")
     return output_file_path
+
 
 # Основная функция для обработки SSH-профилей
 def process_ssh_profiles():

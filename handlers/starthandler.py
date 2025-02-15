@@ -1,7 +1,7 @@
 from handlers.config import bot
 from database.mongoDB import coll
 from keyboard.keyboardInlineStartMessage import create_inline_keyboard
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start','menu'])
 def start(message):
     try:
         # Получаем Telegram ID пользователя и его имя
