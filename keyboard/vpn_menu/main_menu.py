@@ -5,7 +5,7 @@ def create_inline_keyboard():
     keyboard = telebot.types.InlineKeyboardMarkup(row_width=2)
 
     buy_extend = telebot.types.InlineKeyboardButton("🛒 Купить/Продлить", callback_data="buy_extend")
-    active_keys = telebot.types.InlineKeyboardButton("ℹ️ Профиль", callback_data="active_keys")
+    active_keys = telebot.types.InlineKeyboardButton("ℹ️ Профиль", callback_data="profile_user")
     help_button = telebot.types.InlineKeyboardButton("❓ Помощь", callback_data="help")
     change_location = telebot.types.InlineKeyboardButton("🌍 Изменить локацию", callback_data="change_location")
     donate = telebot.types.InlineKeyboardButton("❤️ Пожертвовать", callback_data="donate")
