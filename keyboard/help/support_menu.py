@@ -2,7 +2,7 @@ from handlers.config import bot
 from telebot import types
 # Функция для обработки выбора языка
 
-def handle_halp(call):
+def support_help_menu(call):
     if call.data == "help":
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("Как подключиться❓", callback_data="help_how_to_connect"))

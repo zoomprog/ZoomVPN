@@ -1,5 +1,5 @@
 from handlers.config import bot
-from keyboard.keyboardInlineStartMessage import create_inline_keyboard
+from keyboard.vpn_menu.main_menu import create_inline_keyboard
 
 
 def main_menu(call):
