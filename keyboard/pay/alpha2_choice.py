@@ -7,3 +7,4 @@ def create_inline_alpha2_button_choice():
     keyboard.add(ru_button_choice,fi_button_choice)
     return keyboard
 
+

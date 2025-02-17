@@ -18,6 +18,8 @@ from keyboard.help.vpn_problems_and_solutions import doesnt_work_vpn
 from handlers.profile.profile_users import handler_profile_user
 from keyboard.profile.information_profile import qr_user_conclusion, file_user_conclusion
 from database.mongo_config_and_QRCode import config_and_QRCode
+#from handlers.change_of_region.region_swipe import handle_country_swipe
+from keyboard.pay.alpha2_choice import create_inline_alpha2_button_choice
 # Настройка логирования для отладки
 logging.basicConfig(level=logging.INFO)
 
@@ -58,7 +60,11 @@ def handle_callback(call,func=lambda call: call.data in ["ru_ssh_profile", "fi_s
 
 
         elif call.data == "change_location":
-            process_callback(call, "Вы выбрали опцию 'Изменить локацию'.", "Выбрано: Изменить локацию")
+            bot.send_message(
+                call.message.chat.id,
+                "Выберите страну для подключения Zoom VPN:",
+                reply_markup=create_inline_alpha2_button_choice()
+            )
         elif call.data == "profile_user":
             handler_profile_user(call)
         elif call.data == "qr_user_profile_conclusion":
@@ -118,12 +124,6 @@ def handle_callback(call,func=lambda call: call.data in ["ru_ssh_profile", "fi_s
                     print("Пользователь не оплатил сервер")
             else:
                 print(f"Пользователь не зарегистрирован.")
-
-
-
-
-
-
         elif call.data == "donate":
             process_callback(call, "Вы выбрали опцию 'Пожертвовать'.", "Выбрано: Пожертвовать")
 

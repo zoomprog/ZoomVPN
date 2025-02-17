@@ -194,7 +194,27 @@ def handle_country_selection(call):
     user_id = call.from_user.id
     selected_profile = call.data  # ru_ssh_profile или fi_ssh_profile
 
+    # Получаем данные пользователя из базы данных
     user_data = coll.find_one({"telegram_id": user_id})
+
+    # Проверяем статус подписки
+    if not user_data or user_data.get("subscription_status") != "активна":
+        bot.send_message(
+            call.message.chat.id,
+            "У вас нет активной подписки. Пожалуйста, оформите подписку для доступа к ресурсам."
+        )
+        return
+
+    # Проверяем дату окончания подписки
+    subscription_expiry_date = user_data.get("subscription_expiry_date")
+    if subscription_expiry_date and datetime.now() > subscription_expiry_date:
+        bot.send_message(
+            call.message.chat.id,
+            "Ваша подписка истекла. Пожалуйста, продлите её для доступа к ресурсам."
+        )
+        return
+
+    # Остальная логика выбора страны
     previous_profile = user_data.get("ssh_alpha2") if user_data else None
 
     selected_server = ssh.find_one({"alpha2": selected_profile})
@@ -249,6 +269,7 @@ def handle_country_selection(call):
         message_id=call.message.message_id
     )
 
+    # Отправляем QR-код
     qrcode_name = get_qrcode_name_by_telegram_id(user_id)
     if qrcode_name:
         base_path = "./config_SSH_parsing/download_config"
@@ -266,17 +287,16 @@ def handle_country_selection(call):
     else:
         bot.send_message(user_id, "QR-код не найден для вашего Telegram ID.")
 
+    # Отправляем конфигурационный файл
     config_name = get_config_name_by_telegram_id(user_id)
     if config_name:
         base_path = "./config_SSH_parsing/download_config"
         file_path = os.path.join(base_path, selected_profile, "config", config_name)
 
-        # Проверяем, существует ли файл
         if not os.path.exists(file_path):
             bot.send_message(user_id, "Конфиг не найден. Пожалуйста, проверьте настройки.")
             return
 
-        # Отправляем файл пользователю
         try:
             with open(file_path, 'rb') as document:
                 bot.send_document(user_id, document, caption="Вот ваш конфигурационный файл")
