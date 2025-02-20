@@ -132,25 +132,6 @@ def handle_callback(call,func=lambda call: call.data in ["ru_ssh_profile", "fi_s
 
         elif call.data == "main_menu":  # Проверяем "Главное меню" до языков
             main_menu(call)
-
-        elif call.data in ["ru", "en", "de", "fr"]:  # Языки проверяем после "Главное меню"
-            language_mapping = {
-                "ru": "русский",
-                "en": "английский",
-                "de": "немецкий",
-                "fr": "французский"
-            }
-            selected_language = language_mapping.get(call.data)
-            if selected_language:
-                process_callback(
-                    call,
-                    f"Ты выбрал {selected_language} язык! В разработке!",
-                    f"Вы выбрали: {selected_language} язык",
-                    parse_mode='HTML'
-                )
-            else:
-                process_callback(call, "Выбранный язык не поддерживается.", "Неизвестный язык")
-
         else:
             process_callback(call, "Неизвестная команда. Пожалуйста, выберите одну из доступных опций.",
                              "Неизвестная команда")
